@@ -16,6 +16,8 @@ typedef struct {
     struct Date hire_date;
 } Employee;
 
+int save_to_file(char* filename, Employee employees[], int n);
+int load_from_file(char* filename, Employee employees[], int* n);
 struct Date get_current_date();
 double calculate_experience(struct Date hire_date);
 double calculate_average_experience(Employee employees[], int n, double staj[]);
@@ -32,23 +34,46 @@ const char* POSITIONS[] = { "Menedjer", "Proggramist", "Buhgalter", "Disigner", 
 int main() {
     srand(time(NULL));
 
-    int i, n;
+    int i, n = 0;
     Employee employees[10];
     double staj[10];
     double avg_years = 0;
     int menu;
+    char filename[100];
 
     printf("---РАБОТА С СОТРУДНИКАМИ---\n");
-    printf("Сколько сотрудников сгенерировать (от 5 до 10): ");
-    scanf("%d", &n);
 
-    if (n < 5 || n > 10) {
-        printf("Ошибка - введите от 5 до 10 сотрудников\n");
-        return 1;
+    printf("1. Загрузить данные из файла\n");
+    printf("2. Создать новые данные\n");
+    printf("Выберите действие: ");
+    int init_choice;
+    scanf("%d", &init_choice);
+
+    if (init_choice == 1) {
+        printf("Введите имя файла для загрузки: ");
+        scanf("%s", filename);
+
+        if (load_from_file(filename, employees, &n) == 0) {
+            printf("Данные успешно загружены из файла '%s'! Загружено %d сотрудников.\n", filename, n);
+        }
+        else {
+            printf("Не удалось загрузить данные. Будет выполнена генерация новых данных.\n");
+            goto generate_new;
+        }
     }
+    else {
+    generate_new:
+        printf("Сколько сотрудников добавить (от 5 до 10): ");
+        scanf("%d", &n);
 
-    generate_random_employees(employees, n);
-    printf("\nДанные %d сотрудников успешно сгенерированы!\n", n);
+        if (n < 5 || n > 10) {
+            printf("Ошибка - введите от 5 до 10 сотрудников\n");
+            return 1;
+        }
+
+        generate_random_employees(employees, n);
+        printf("\nДанные %d сотрудников успешно добавлены!\n", n);
+    }
 
     for (i = 0; i < n; i++) {
         staj[i] = calculate_experience(employees[i].hire_date);
@@ -57,12 +82,13 @@ int main() {
 
     do {
         printf("\n---МЕНЮ---\n");
-        printf("1.Показать всех сотрудников\n");
-        printf("2.Поиск сотрудника\n");
-        printf("3.Сортировка сотрудников\n");
-        printf("4.Расчет среднего стажа\n");
-        printf("5.Показать сотрудников со стажем выше среднего\n");
-        printf("6.Выход\n");
+        printf("1. Показать всех сотрудников\n");
+        printf("2. Поиск сотрудника\n");
+        printf("3. Сортировка сотрудников\n");
+        printf("4. Расчет среднего стажа\n");
+        printf("5. Показать сотрудников со стажем выше среднего\n");
+        printf("6. Сохранить данные в файл\n");
+        printf("7. Выход\n");
         printf("Выберите действие: ");
         scanf("%d", &menu);
 
@@ -136,16 +162,85 @@ int main() {
             break;
 
         case 6:
+            printf("Введите имя файла для сохранения: ");
+            scanf("%s", filename);
+
+            if (save_to_file(filename, employees, n) == 0) {
+                printf("Данные успешно сохранены в файл '%s'!\n", filename);
+            }
+            else {
+                printf("Ошибка при сохранении данных!\n");
+            }
+            break;
+
+        case 7:
             printf("Выход из программы.\n");
             break;
 
         default:
             printf("Неверный выбор. Попробуйте снова.\n");
         }
-    } while (menu != 6);
+    } while (menu != 7);
 
     return 0;
 }
+
+int save_to_file(char* filename, Employee employees[], int n) {
+    FILE* file = fopen(filename, "wb"); 
+
+    if (file == NULL) {
+        printf("Ошибка открытия файла для записи!\n");
+        return -1;
+    }
+
+    if (fwrite(&n, sizeof(int), 1, file) != 1) {
+        printf("Ошибка записи количества элементов!\n");
+        fclose(file);
+        return -1;
+    }
+
+    int written = fwrite(employees, sizeof(Employee), n, file);
+    if (written != n) {
+        printf("Ошибка записи данных! Записано %d из %d элементов\n", written, n);
+        fclose(file);
+        return -1;
+    }
+
+    fclose(file);
+    return 0;
+}
+
+int load_from_file(char* filename, Employee employees[], int* n) {
+    FILE* file = fopen(filename, "rb"); 
+
+    if (file == NULL) {
+        printf("Файл '%s' не найден или не может быть открыт!\n", filename);
+        return -1;
+    }
+
+    if (fread(n, sizeof(int), 1, file) != 1) {
+        printf("Ошибка чтения количества элементов!\n");
+        fclose(file);
+        return -1;
+    }
+
+    if (*n < 0 || *n > 10) {
+        printf("Некорректное количество элементов в файле: %d\n", *n);
+        fclose(file);
+        return -1;
+    }
+
+    int read = fread(employees, sizeof(Employee), *n, file);
+    if (read != *n) {
+        printf("Ошибка чтения данных! Прочитано %d из %d элементов\n", read, *n);
+        fclose(file);
+        return -1;
+    }
+
+    fclose(file);
+    return 0;
+}
+
 
 struct Date get_current_date() {
     struct tm* mytime;
