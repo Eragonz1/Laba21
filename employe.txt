@@ -1,0 +1,492 @@
+#include <locale.h>
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
+#include <stdlib.h>
+
+struct Date {
+    int day;
+    int month;
+    int year;
+};
+
+typedef struct {
+    char surname[30];
+    char name[30];
+    char patronymic[30];
+    char position[50];
+    char gender;
+    struct Date hire_date;
+} Employee;
+
+struct Date get_current_date();
+double calculate_experience(struct Date hire_date);
+void print_employee(Employee emp, double staj);
+void search_by_field(Employee employees[], int n, double staj[]);
+void sort_by_field(Employee employees[], int n, double staj[]);
+void generate_random_employees(Employee employees[], int n);
+
+// Массивы для случайного заполнения
+const char* SURNAMES[] = {
+    "Иванов", "Петров", "Сидоров", "Кузнецов", "Смирнов",
+    "Попов", "Лебедев", "Козлов", "Новиков", "Морозов",
+    "Волков", "Соловьев", "Васильев", "Зайцев", "Павлов",
+    "Семенов", "Голубев", "Виноградов", "Богданов", "Воробьев"
+};
+
+const char* NAMES[] = {
+    "Александр", "Алексей", "Андрей", "Артем", "Борис",
+    "Вадим", "Валентин", "Валерий", "Виктор", "Владимир",
+    "Геннадий", "Георгий", "Денис", "Дмитрий", "Евгений",
+    "Иван", "Игорь", "Константин", "Максим", "Михаил"
+};
+
+const char* PATRONYMICS[] = {
+    "Александрович", "Алексеевич", "Андреевич", "Артемович", "Борисович",
+    "Вадимович", "Валентинович", "Валерьевич", "Викторович", "Владимирович",
+    "Геннадьевич", "Георгиевич", "Денисович", "Дмитриевич", "Евгеньевич",
+    "Иванович", "Игоревич", "Константинович", "Максимович", "Михайлович"
+};
+
+const char* FEMALE_SURNAMES[] = {
+    "Иванова", "Петрова", "Сидорова", "Кузнецова", "Смирнова",
+    "Попова", "Лебедева", "Козлова", "Новикова", "Морозова",
+    "Волкова", "Соловьева", "Васильева", "Зайцева", "Павлова",
+    "Семенова", "Голубева", "Виноградова", "Богданова", "Воробьева"
+};
+
+const char* FEMALE_NAMES[] = {
+    "Александра", "Алена", "Анастасия", "Анна", "Валентина",
+    "Валерия", "Вера", "Виктория", "Галина", "Дарья",
+    "Евгения", "Екатерина", "Елена", "Ирина", "Ксения",
+    "Людмила", "Мария", "Надежда", "Наталья", "Ольга"
+};
+
+const char* FEMALE_PATRONYMICS[] = {
+    "Александровна", "Алексеевна", "Андреевна", "Артемовна", "Борисовна",
+    "Вадимовна", "Валентиновна", "Валерьевна", "Викторовна", "Владимировна",
+    "Геннадьевна", "Георгиевна", "Денисовна", "Дмитриевна", "Евгеньевна",
+    "Ивановна", "Игоревна", "Константиновна", "Максимовна", "Михайловна"
+};
+
+const char* POSITIONS[] = {
+    "Менеджер", "Программист", "Бухгалтер", "Дизайнер", "Аналитик",
+    "Тестировщик", "Администратор", "Маркетолог", "Продавец", "Консультант",
+    "Инженер", "Экономист", "Юрист", "Менеджер проектов", "Системный администратор",
+    "Секретарь", "Директор", "Заместитель директора", "Логист", "HR-специалист"
+};
+
+int main() {
+    setlocale(LC_ALL, "Russian");
+    srand(time(NULL)); // Инициализация генератора случайных чисел
+    
+    int i, n;
+    Employee employees[10];
+    double staj[10];
+    double total_years = 0, avg_years;
+    int choice;
+
+    printf("========== СИСТЕМА УПРАВЛЕНИЯ СОТРУДНИКАМИ ==========\n");
+    printf("Сколько сотрудников сгенерировать (от 5 до 10): ");
+    scanf("%d", &n);
+
+    if (n < 5 || n > 10) {
+        printf("Ошибка - введите от 5 до 10 сотрудников\n");
+        return 1;
+    }
+
+    // Автоматическое заполнение
+    generate_random_employees(employees, n);
+    printf("\nДанные %d сотрудников успешно сгенерированы!\n", n);
+
+    printf("\n---Расчет стажа---\n");
+    for (i = 0; i < n; i++) {
+        staj[i] = calculate_experience(employees[i].hire_date);
+        total_years += staj[i];
+
+        printf("%s %s: %.1f лет\n", employees[i].surname, employees[i].name, staj[i]);
+    }
+    avg_years = total_years / n;
+    printf("\nСредний стаж: %.1f лет\n", avg_years);
+
+    printf("\n---Сотрудники со стажем выше среднего---\n");
+    int count = 0;
+    for (i = 0; i < n; i++) {
+        if (staj[i] > avg_years) {
+            print_employee(employees[i], staj[i]);
+            count++;
+        }
+    }
+    if (count == 0) {
+        printf("Таких сотрудников нет.\n");
+    }
+    else {
+        printf("\nНайдено: %d сотрудников\n", count);
+    }
+
+    // Главное меню
+    do {
+        printf("\n========== ГЛАВНОЕ МЕНЮ ==========\n");
+        printf("1. Показать всех сотрудников\n");
+        printf("2. Поиск сотрудника\n");
+        printf("3. Сортировка сотрудников\n");
+        printf("4. Показать сотрудников со стажем выше среднего\n");
+        printf("5. Выход\n");
+        printf("Выберите действие: ");
+        scanf("%d", &choice);
+
+        switch (choice) {
+            case 1:
+                printf("\n--- Все сотрудники ---\n");
+                for (i = 0; i < n; i++) {
+                    print_employee(employees[i], staj[i]);
+                }
+                break;
+                
+            case 2:
+                search_by_field(employees, n, staj);
+                break;
+                
+            case 3:
+                sort_by_field(employees, n, staj);
+                break;
+                
+            case 4:
+                printf("\n--- Сотрудники со стажем выше среднего (%.1f лет) ---\n", avg_years);
+                count = 0;
+                for (i = 0; i < n; i++) {
+                    if (staj[i] > avg_years) {
+                        print_employee(employees[i], staj[i]);
+                        count++;
+                    }
+                }
+                if (count == 0) {
+                    printf("Таких сотрудников нет.\n");
+                }
+                break;
+                
+            case 5:
+                printf("Выход из программы.\n");
+                break;
+                
+            default:
+                printf("Неверный выбор. Попробуйте снова.\n");
+        }
+    } while (choice != 5);
+
+    return 0;
+}
+
+struct Date get_current_date() {
+    struct tm* mytime;
+    time_t t;
+    t = time(NULL);
+    mytime = localtime(&t);
+
+    struct Date current;
+    current.day = mytime->tm_mday;
+    current.month = mytime->tm_mon + 1;
+    current.year = mytime->tm_year + 1900;
+
+    return current;
+}
+
+double calculate_experience(struct Date hire_date) {
+    
+    struct Date current = get_current_date();
+    int days = (current.year - hire_date.year) * 365 + (current.month - hire_date.month) * 30 + (current.day - hire_date.day);
+
+    if (days < 0) {
+        return 0;
+    }
+
+    return days / 365.0;
+}
+
+void print_employee(Employee emp, double staj) {
+    printf("\n--- Сотрудник ---\n");
+    printf("Фамилия: %s\n", emp.surname);
+    printf("Имя: %s\n", emp.name);
+    printf("Отчество: %s\n", emp.patronymic);
+    printf("Должность: %s\n", emp.position);
+    printf("Пол: %c\n", emp.gender);
+    printf("Дата приема: %02d.%02d.%d\n", emp.hire_date.day, emp.hire_date.month, emp.hire_date.year);
+    printf("Стаж: %.1f лет\n", staj);
+}
+
+// Функция поиска по выбранному полю
+void search_by_field(Employee employees[], int n, double staj[]) {
+    int choice;
+    char search_value[50];
+    char gender_search;
+    int found = 0;
+    
+    printf("\n========== ПОИСК СОТРУДНИКА ==========\n");
+    printf("По какому полю искать:\n");
+    printf("1. Фамилия\n");
+    printf("2. Имя\n");
+    printf("3. Отчество\n");
+    printf("4. Должность\n");
+    printf("5. Пол (М/Ж)\n");
+    printf("Выберите поле для поиска: ");
+    scanf("%d", &choice);
+    
+    switch (choice) {
+        case 1:
+            printf("Введите фамилию для поиска: ");
+            scanf("%s", search_value);
+            printf("\nРезультаты поиска по фамилии '%s':\n", search_value);
+            for (int i = 0; i < n; i++) {
+                if (strcmp(employees[i].surname, search_value) == 0) {
+                    print_employee(employees[i], staj[i]);
+                    found = 1;
+                }
+            }
+            break;
+            
+        case 2:
+            printf("Введите имя для поиска: ");
+            scanf("%s", search_value);
+            printf("\nРезультаты поиска по имени '%s':\n", search_value);
+            for (int i = 0; i < n; i++) {
+                if (strcmp(employees[i].name, search_value) == 0) {
+                    print_employee(employees[i], staj[i]);
+                    found = 1;
+                }
+            }
+            break;
+            
+        case 3:
+            printf("Введите отчество для поиска: ");
+            scanf("%s", search_value);
+            printf("\nРезультаты поиска по отчеству '%s':\n", search_value);
+            for (int i = 0; i < n; i++) {
+                if (strcmp(employees[i].patronymic, search_value) == 0) {
+                    print_employee(employees[i], staj[i]);
+                    found = 1;
+                }
+            }
+            break;
+            
+        case 4:
+            printf("Введите должность для поиска: ");
+            scanf("%s", search_value);
+            printf("\nРезультаты поиска по должности '%s':\n", search_value);
+            for (int i = 0; i < n; i++) {
+                if (strcmp(employees[i].position, search_value) == 0) {
+                    print_employee(employees[i], staj[i]);
+                    found = 1;
+                }
+            }
+            break;
+            
+        case 5:
+            printf("Введите пол для поиска (М/Ж): ");
+            scanf(" %c", &gender_search);
+            printf("\nРезультаты поиска по полу '%c':\n", gender_search);
+            for (int i = 0; i < n; i++) {
+                if (employees[i].gender == gender_search) {
+                    print_employee(employees[i], staj[i]);
+                    found = 1;
+                }
+            }
+            break;
+            
+        default:
+            printf("Неверный выбор.\n");
+            return;
+    }
+    
+    if (!found) {
+        printf("\nСотрудники не найдены.\n");
+    }
+}
+
+// Функция сортировки по выбранному полю
+void sort_by_field(Employee employees[], int n, double staj[]) {
+    int choice;
+    printf("\n========== СОРТИРОВКА СОТРУДНИКОВ ==========\n");
+    printf("По какому полю сортировать:\n");
+    printf("1. Фамилия (по алфавиту)\n");
+    printf("2. Имя (по алфавиту)\n");
+    printf("3. Должность (по алфавиту)\n");
+    printf("4. Стаж (по возрастанию)\n");
+    printf("5. Дата приема (от старых к новым)\n");
+    printf("Выберите поле для сортировки: ");
+    scanf("%d", &choice);
+    
+    // Временные переменные для сортировки
+    Employee temp_emp;
+    double temp_staj;
+    
+    switch (choice) {
+        case 1:
+            // Сортировка по фамилии
+            for (int i = 0; i < n - 1; i++) {
+                for (int j = 0; j < n - i - 1; j++) {
+                    if (strcmp(employees[j].surname, employees[j + 1].surname) > 0) {
+                        // Меняем местами сотрудников
+                        temp_emp = employees[j];
+                        employees[j] = employees[j + 1];
+                        employees[j + 1] = temp_emp;
+                        
+                        // Меняем местами соответствующие значения стажа
+                        temp_staj = staj[j];
+                        staj[j] = staj[j + 1];
+                        staj[j + 1] = temp_staj;
+                    }
+                }
+            }
+            printf("\nСортировка по фамилии выполнена.\n");
+            break;
+            
+        case 2:
+            // Сортировка по имени
+            for (int i = 0; i < n - 1; i++) {
+                for (int j = 0; j < n - i - 1; j++) {
+                    if (strcmp(employees[j].name, employees[j + 1].name) > 0) {
+                        temp_emp = employees[j];
+                        employees[j] = employees[j + 1];
+                        employees[j + 1] = temp_emp;
+                        
+                        temp_staj = staj[j];
+                        staj[j] = staj[j + 1];
+                        staj[j + 1] = temp_staj;
+                    }
+                }
+            }
+            printf("\nСортировка по имени выполнена.\n");
+            break;
+            
+        case 3:
+            // Сортировка по должности
+            for (int i = 0; i < n - 1; i++) {
+                for (int j = 0; j < n - i - 1; j++) {
+                    if (strcmp(employees[j].position, employees[j + 1].position) > 0) {
+                        temp_emp = employees[j];
+                        employees[j] = employees[j + 1];
+                        employees[j + 1] = temp_emp;
+                        
+                        temp_staj = staj[j];
+                        staj[j] = staj[j + 1];
+                        staj[j + 1] = temp_staj;
+                    }
+                }
+            }
+            printf("\nСортировка по должности выполнена.\n");
+            break;
+            
+        case 4:
+            // Сортировка по стажу
+            for (int i = 0; i < n - 1; i++) {
+                for (int j = 0; j < n - i - 1; j++) {
+                    if (staj[j] > staj[j + 1]) {
+                        temp_emp = employees[j];
+                        employees[j] = employees[j + 1];
+                        employees[j + 1] = temp_emp;
+                        
+                        temp_staj = staj[j];
+                        staj[j] = staj[j + 1];
+                        staj[j + 1] = temp_staj;
+                    }
+                }
+            }
+            printf("\nСортировка по стажу выполнена.\n");
+            break;
+            
+        case 5:
+            // Сортировка по дате приема
+            for (int i = 0; i < n - 1; i++) {
+                for (int j = 0; j < n - i - 1; j++) {
+                    // Сравниваем годы
+                    if (employees[j].hire_date.year > employees[j + 1].hire_date.year ||
+                        (employees[j].hire_date.year == employees[j + 1].hire_date.year && 
+                         employees[j].hire_date.month > employees[j + 1].hire_date.month) ||
+                        (employees[j].hire_date.year == employees[j + 1].hire_date.year && 
+                         employees[j].hire_date.month == employees[j + 1].hire_date.month &&
+                         employees[j].hire_date.day > employees[j + 1].hire_date.day)) {
+                        
+                        temp_emp = employees[j];
+                        employees[j] = employees[j + 1];
+                        employees[j + 1] = temp_emp;
+                        
+                        temp_staj = staj[j];
+                        staj[j] = staj[j + 1];
+                        staj[j + 1] = temp_staj;
+                    }
+                }
+            }
+            printf("\nСортировка по дате приема выполнена.\n");
+            break;
+            
+        default:
+            printf("Неверный выбор.\n");
+            return;
+    }
+    
+    // Показать отсортированный список
+    printf("\n--- Отсортированный список сотрудников ---\n");
+    for (int i = 0; i < n; i++) {
+        print_employee(employees[i], staj[i]);
+    }
+}
+
+// Функция генерации случайных сотрудников
+void generate_random_employees(Employee employees[], int n) {
+    struct Date current_date = get_current_date();
+    
+    for (int i = 0; i < n; i++) {
+        // Случайно выбираем пол сотрудника
+        if (rand() % 2 == 0) {
+            // Мужчина
+            employees[i].gender = 'М';
+            strcpy(employees[i].surname, SURNAMES[rand() % 20]);
+            strcpy(employees[i].name, NAMES[rand() % 20]);
+            strcpy(employees[i].patronymic, PATRONYMICS[rand() % 20]);
+        } else {
+            // Женщина
+            employees[i].gender = 'Ж';
+            strcpy(employees[i].surname, FEMALE_SURNAMES[rand() % 20]);
+            strcpy(employees[i].name, FEMALE_NAMES[rand() % 20]);
+            strcpy(employees[i].patronymic, FEMALE_PATRONYMICS[rand() % 20]);
+        }
+        
+        // Должность
+        strcpy(employees[i].position, POSITIONS[rand() % 20]);
+        
+        // Генерация случайной даты приема (от 0 до 20 лет назад)
+        int years_ago = rand() % 21; // 0-20 лет назад
+        int months_ago = rand() % 12; // 0-11 месяцев назад
+        int days_ago = rand() % 30; // 0-29 дней назад
+        
+        employees[i].hire_date.year = current_date.year - years_ago;
+        employees[i].hire_date.month = current_date.month - months_ago;
+        employees[i].hire_date.day = current_date.day - days_ago;
+        
+        // Корректировка даты, если месяц или день стали отрицательными
+        if (employees[i].hire_date.month <= 0) {
+            employees[i].hire_date.month += 12;
+            employees[i].hire_date.year--;
+        }
+        
+        if (employees[i].hire_date.day <= 0) {
+            employees[i].hire_date.day += 30;
+            employees[i].hire_date.month--;
+            
+            if (employees[i].hire_date.month <= 0) {
+                employees[i].hire_date.month += 12;
+                employees[i].hire_date.year--;
+            }
+        }
+        
+        // Проверка, чтобы дата не была в будущем
+        if (employees[i].hire_date.year > current_date.year ||
+            (employees[i].hire_date.year == current_date.year && 
+             employees[i].hire_date.month > current_date.month) ||
+            (employees[i].hire_date.year == current_date.year && 
+             employees[i].hire_date.month == current_date.month &&
+             employees[i].hire_date.day > current_date.day)) {
+            employees[i].hire_date = current_date;
+        }
+    }
+}
